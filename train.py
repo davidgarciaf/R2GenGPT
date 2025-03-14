@@ -11,7 +11,7 @@ import lightning.pytorch as pl
 def train(args):
     dm = DataModule(args)
     callbacks = add_callbacks(args)
-
+# Configurar el entrenador
     trainer = pl.Trainer(
         devices=args.devices,
         num_nodes=args.num_nodes,
@@ -31,7 +31,7 @@ def train(args):
         model = R2GenGPT.load_from_checkpoint(args.ckpt_file, strict=False)
     else:
         model = R2GenGPT(args)
-
+# Ejecuta el entrenamiento, validación y test
     if args.test:
         trainer.test(model, datamodule=dm)
     elif args.validate:
@@ -40,10 +40,15 @@ def train(args):
         trainer.fit(model, datamodule=dm)
 
 def main():
+ # Obtiene los argumentos de la configuración
     args = parser.parse_args()
+ # Crea una carpeta de salida
     os.makedirs(args.savedmodel_path, exist_ok=True)
+ # Imprime los parámetros
     pprint(vars(args))
+ # Fija la semilla
     seed_everything(42, workers=True)
+ #Inicia el proceso de entrenamiento
     train(args)
 
 
