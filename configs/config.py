@@ -4,19 +4,28 @@ parser = argparse.ArgumentParser(description="hyper-parameter for R2GenGPT")
 # ========================= Dataset Configs ==========================
 parser.add_argument('--test', action='store_true', help="only run test set")
 parser.add_argument('--validate', action='store_true', help="only run validation set")
+# Especifica si el conjunto de entrenamiento tiene que ser el de mimic o iu-xray
 parser.add_argument('--dataset', type=str, default='mimic_cxr', help="iu-xray or mimic-cxr")
+# Ruta de las anotaciones
 parser.add_argument('--annotation', type=str, default=r'./data/mimic_cxr/annotation.json', help="annotation file of the dataset")
+# Ruta de las imágenes
 parser.add_argument('--base_dir', type=str, default=r'./data/mimic_cxr/images', help="base dir to help find images")
+# Tamaños de los lotes de entrenamiento, validación y prueba
 parser.add_argument('--batch_size', default=6, type=int, help="use for training duration per worker")
 parser.add_argument('--val_batch_size', default=16, type=int, help="use for validation duration per worker")
 parser.add_argument('--test_batch_size', default=16, type=int, help="use for testing duration per worker")
+# Optimización de carga de datos con multiprocessing
 parser.add_argument('--prefetch_factor', default=4, type=int, help="use for training duration per worker")
 parser.add_argument('--num_workers', default=8, type=int, help="Cpu num for dataloaders")
 
 # ========================= Model Settings ============================
+# Modelo de visión por defecto. El Swin Transformers
 parser.add_argument('--vision_model', default='microsoft/swin-base-patch4-window7-224', type=str, help="vision model to use")
+# Modelo de lenguaje
 parser.add_argument('--llama_model', default='meta-llama/Llama-2-7b-chat-hf', type=str, help="LLM model to use")
+# Congela el modelo de visión para evitar su ajuste
 parser.add_argument('--freeze_vm', default=True, type=lambda x: (str(x).lower() == 'true'), help='freeze vision model')
+# LoRA
 parser.add_argument('--llm_use_lora', default=False, type=lambda x: (str(x).lower() == 'true'), help="whether use lora for LLM model")
 parser.add_argument('--llm_r', default=16, type=int, help='The dimension used by the LoRA update matrices')
 parser.add_argument('--llm_alpha', default=16, type=int, help='Scaling factor.')
@@ -26,24 +35,35 @@ parser.add_argument('--vis_alpha', default=16, type=int, help='Scaling factor.')
 parser.add_argument('--lora_dropout', default=0.1, type=float, help='lora dropout')
 parser.add_argument('--global_only', default=False, type=lambda x: (str(x).lower() == 'true'), help='use global embedding only')
 parser.add_argument('--low_resource', default=False, type=bool)
+# Define el token de finalización
 parser.add_argument('--end_sym', default='</s>', type=str)
 
 # ======================== SavedModel Configs ===========================
+# Ruta para guardar los modelos
 parser.add_argument('--savedmodel_path', type=str, default='save/mimic/v1')
+# Permite cargar un checkpoint previo
 parser.add_argument('--ckpt_file', type=str, default=None, help='the checkpoint file to load')
 parser.add_argument('--delta_file', type=str, default=None, help='the delta file to load')
 parser.add_argument('--weights', type=list, default=[0.5, 0.5])
+# Métricas de evaluación 
 parser.add_argument('--scorer_types', type=list, default=['Bleu_4', 'CIDEr'])
 
 # ========================= Learning Configs ==========================
+# Learning rate
 parser.add_argument('--learning_rate', default=1e-4, type=float, help='initial learning rate')
+# Valor de corte del gradiente (para evitar que explote)
 parser.add_argument('--gradient_clip_val', default=None, type=int, help='gradient clip value')
 
+#El decoding afecta a como el modelo genera el texto
 # ========================= Decoding Settings ==========================
+# Tamaño del beam search
 parser.add_argument('--beam_size', type=int, default=3)
+# Habilita el sampling en la generación del texto
 parser.add_argument('--do_sample', type=bool, default=False)
+# Evita la repetición de ngramas
 parser.add_argument('--no_repeat_ngram_size', type=int, default=2)
 parser.add_argument('--num_beam_groups', type=int, default=1)
+# Longitud de la salida generada
 parser.add_argument('--min_new_tokens', type=int, default=80)
 parser.add_argument('--max_new_tokens', type=int, default=120)
 parser.add_argument('--max_length', type=int, default=100)
@@ -53,9 +73,11 @@ parser.add_argument('--diversity_penalty', type=float, default=0)
 parser.add_argument('--temperature', type=float, default=0)
 
 # ====================== Pytorch Lightning ===========================
+# Número de GPUs. 2 por defecto
 parser.add_argument('--devices', type=int, default=2, help='how many gpus to use')
 parser.add_argument('--num_nodes', type=int, default=1, help='Number of GPU nodes for distributed training.')
 parser.add_argument('--accelerator', type=str, default="gpu", choices=["cpu", "gpu", "tpu", "ipu", "hpu", "mps"], help='accelerator types')
+# Entrenamiento distribuido con datos en paralelo
 parser.add_argument('--strategy', type=str, default="ddp", help='default ddp for multi-gpus')
 parser.add_argument('--precision', type=str, default='bf16-mixed', help='16 or 32 bf16-mixed, using for original pytorch amp auto cast')
 parser.add_argument('--limit_val_batches', type=float, default=1.0, help='How much of validation dataset to check (float = fraction, int = num_batches).')
