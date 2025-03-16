@@ -25,7 +25,9 @@ class R2GenGPT(pl.LightningModule):
         self.save_hyperparameters(args)
 
         print(f'Loading vision encoder:{args.vision_model}')
+        # Carga el modelo prentrenado de visual encoder. 
         self.visual_encoder = SwinModel.from_pretrained(args.vision_model)
+        #LoRA fine-tuning
         if args.vis_use_lora:
             peft_config_visual = LoraConfig(
                                     r=args.vis_r,
@@ -38,6 +40,7 @@ class R2GenGPT(pl.LightningModule):
             self.visual_encoder = get_peft_model(self.visual_encoder, peft_config_visual)
             self.visual_encoder.print_trainable_parameters()
             print('Loading vision encoder with LoRA -- Done')
+        # Congelamiento del encoder si fuera necesario 
         elif args.freeze_vm:
             for name, param in self.visual_encoder.named_parameters():
                 param.requires_grad = False
@@ -46,7 +49,9 @@ class R2GenGPT(pl.LightningModule):
             print(f'Loading Trainable vision encoder:{args.vision_model} -- Done')
 
         print('Loading LLAMA')
+        # Carga LLM prentrenado para la generación de texto
         self.llama_tokenizer = LlamaTokenizer.from_pretrained(args.llama_model, use_fast=False)
+        # Carga el tokenizer de LLaMA
         self.llama_tokenizer.pad_token_id = 0
         if args.low_resource:
             self.llama_model = LlamaForCausalLM.from_pretrained(
@@ -75,9 +80,11 @@ class R2GenGPT(pl.LightningModule):
                 param.requires_grad = False
             print('Loading LLAMA Done')
 
+        # Proyección para mapear las image features al tamaño oculto de LLaMA
         self.llama_proj = nn.Linear(self.visual_encoder.num_features, self.llama_model.config.hidden_size)
         self.layer_norm = nn.LayerNorm(self.llama_model.config.hidden_size)
         self.end_sym = args.end_sym
+        # Define un prompt sencillo con la tarea del modelo
         self.prompt = 'Generate a comprehensive and detailed diagnosis report for this chest xray image.'
         self.val_step_outputs = []
         self.test_step_outputs = []
@@ -90,6 +97,11 @@ class R2GenGPT(pl.LightningModule):
 
 
     def score(self, ref, hypo):
+        # Función para el score usando: 
+        # BLEU: similitud de n-gramas 
+        # ROUGE: similitud basada en el recall
+        # METEOR: similitud semántica
+        # CIDEr: consistencia
         """
         ref, dictionary of reference sentences (id, sentence)
         hypo, dictionary of hypothesis sentences (id, sentence)
@@ -111,23 +123,27 @@ class R2GenGPT(pl.LightningModule):
                 final_scores[method] = score
         return final_scores
 
-
+    # Enconding de las imágenes
     def encode_img(self, images):
+        # Extrae las image features usando el Swin Transformer
         image_embeds = []
         for image in images:
             device = image.device
+            # Usa solo el pooled output
             if self.hparams.global_only:
                 image_embed = self.visual_encoder(image)['pooler_output'].unsqueeze(1).to(device)
+            # O usa el hidden state completo
             else:
                 image_embed = self.visual_encoder(image)['last_hidden_state'].to(device)
             image_embeds.append(image_embed)
             
         image_embeds = torch.stack(image_embeds).mean(0)
+        # Mapea los features de la imagen al espacio de LLaMA
         inputs_llama = self.llama_proj(image_embeds)
         atts_llama = torch.ones(inputs_llama.size()[:-1], dtype=torch.long).to(image.device)
         return inputs_llama, atts_llama
 
-
+    # Prepara el formato para el input de LLaMA insertando los embeddings de imagen en un prompt estructurado
     def prompt_wrap(self, img_embeds, atts_img):
         prompt=f'Human: <Img><ImageHere></Img> {self.prompt} \nAssistant:'
         batch_size = img_embeds.shape[0]
@@ -145,14 +161,19 @@ class R2GenGPT(pl.LightningModule):
 
     def forward(self, samples):
         image = samples["image"]
+        # Genera los image features
         img_embeds, atts_img = self.encode_img(image)
+        # Aplica normalización a la capa
         img_embeds = self.layer_norm(img_embeds)
 
+        # Wrap los image embeddings en el prompt de texto
         img_embeds, atts_img = self.prompt_wrap(img_embeds, atts_img)
 
+        # Tokeniza el texto de salida esperado 
         self.llama_tokenizer.padding_side = "right"
         text = [t + self.end_sym for t in samples["input_text"]]
 
+        # Crea un tensor input combinando biggining of sequence token, image embeddings and text embeddings. 
         to_regress_tokens = self.llama_tokenizer(
             text,
             return_tensors="pt",
@@ -189,11 +210,14 @@ class R2GenGPT(pl.LightningModule):
             return_dict=True,
             labels=targets,
         )
+        # Calcula la pérdida usando el modelo de LLaMA
         loss = outputs.loss
         return {"loss": loss}
 
     def training_step(self, batch, batch_idx):
+        # Llama al método forward
         result = self(batch)
+        # Log de la pérdida (loss)
         self.log_dict(result, prog_bar=True)
         return result
 
@@ -221,6 +245,10 @@ class R2GenGPT(pl.LightningModule):
         torch.save(save_obj, save_to)
     
     def validation_step(self, samples, batch_idx):
+        # Similar a forward pero en lugar de calcular la pérdida:
+        # Genera el texto output
+        # Decodifica los tokens en texto legible 
+        # Almacena la hypothesis generada y el texto de referencia 
         self.llama_tokenizer.padding_side = "right"
         to_regress_tokens = self.llama_tokenizer(
             samples['input_text'],
@@ -271,6 +299,9 @@ class R2GenGPT(pl.LightningModule):
         output_text = output_text.replace('<unk>', '')
         return output_text
 
+    # Agrega todos los reportes generados y los compara con los de referencia 
+    # Calcula las métricas de evaluación
+    # Si el modelo tiene mejores métricas, guarda un checkpoint
     def on_validation_epoch_end(self):
         ref, hypo, ids = [], [], []
         for i in self.val_step_outputs:
@@ -300,7 +331,8 @@ class R2GenGPT(pl.LightningModule):
                 self.val_score = val_score
         self.val_step_outputs.clear()
 
-
+    # Como validation step pero para la evaluación final
+    # Guarda los reportes generados y sus métricas.
     def test_step(self, samples, batch_idx):
         self.llama_tokenizer.padding_side = "right"
         to_regress_tokens = self.llama_tokenizer(
@@ -364,6 +396,7 @@ class R2GenGPT(pl.LightningModule):
         json.dump(ref, open(os.path.join(result_folder, 'test_refs.json'), 'w'))
         self.print(f"Test result of {self.hparams.delta_file}: {eval_res}")
 
+    # Configura el optimizador AdamW
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.hparams.learning_rate)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=self.hparams.max_epochs, eta_min=1e-6)
