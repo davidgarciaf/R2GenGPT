@@ -20,7 +20,10 @@ import copy
 import sys, math, re
 from collections import defaultdict
 
+# Calcula la puntuación BLEU basándose en referencias y textos generados. Haciendo uso de bleu.py
+
 def precook(s, n=4, out=False):
+    # Extrae n-gramas de una oración y cuenta su frecuencia
     """Takes a string as input and returns an object that can be given to
     either cook_refs or cook_test. This is optional: cook_refs and cook_test
     can take string arguments as well."""
@@ -33,6 +36,8 @@ def precook(s, n=4, out=False):
     return (len(words), counts)
 
 def cook_refs(refs, eff=None, n=4): ## lhuang: oracle will call with "average"
+    # Procesa múltiples referencias para un segmento
+    # Devuelve la longitud de la referencia y el máximo conteo del n-grama en todas las referencias.
     '''Takes a list of reference sentences for a single segment
     and returns an object that encapsulates everything that BLEU
     needs to know about them.'''
@@ -58,6 +63,8 @@ def cook_refs(refs, eff=None, n=4): ## lhuang: oracle will call with "average"
     return (reflen, maxcounts)
 
 def cook_test(test, crefs, eff=None, n=4):
+    # Procesa el texto generado (test) y lo compara con las referencias (crefs)
+    # Devuelve la longitud de la referencia, del texto generado, la cantidad de n-gramas en el texto generado y la cantidad de n-gramas correctos comparados con la referencia. 
     '''Takes a test sentence and returns an object that
     encapsulates everything that BLEU needs to know about it.'''
     reflen, refmaxcounts = crefs[0], crefs[1]
@@ -84,6 +91,7 @@ def cook_test(test, crefs, eff=None, n=4):
     return result
 
 class BleuScorer(object):
+    # Maneja la comparación entre textos generados y sus referencias.
     """Bleu scorer.
     """
 
@@ -195,8 +203,11 @@ class BleuScorer(object):
     def recompute_score(self, option=None, verbose=0):
         self._score = None
         return self.compute_score(option, verbose)
-        
+
+    # Calcula la puntuación BLEU
+    # Devuelve la puntuación bleu agregada (bleus) y por cada oración (bleu_list)
     def compute_score(self, option=None, verbose=0):
+
         n = self.n
         small = 1e-9
         tiny = 1e-15 ## so that if guess is 0 still return 0
