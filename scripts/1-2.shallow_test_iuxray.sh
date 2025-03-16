@@ -3,11 +3,13 @@
 dataset="iu_xray"
 annotation="data/iu_xray/annotation.json"
 base_dir="./data/iu_xray/images"
+# Modelo preentrenado a evaluar
 delta_file="/apdcephfs/share_733425/vinnylywang/zhanyuwang/Code/R2GenGPT/save/iu_xray/v1_shallow/checkpoints/checkpoint_epoch11_step1548_bleu0.155866_cider0.450477.pth"
 
 version="v1_shallow"
 savepath="./save/$dataset/$version"
 
+# Ejecuta el train.py en modo evaluación (--test)
 python -u train.py \
     --test \
     --dataset ${dataset} \
