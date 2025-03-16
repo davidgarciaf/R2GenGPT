@@ -1,5 +1,7 @@
 #!/bin/bash
-
+# Entrena el modelo en IU X-ray
+# Congela el modelo visual
+# Usa LoRA
 dataset="iu_xray"
 annotation="data/iu_xray/annotation.json"
 base_dir="./data/iu_xray/images"
