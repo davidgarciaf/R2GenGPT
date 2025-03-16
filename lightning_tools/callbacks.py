@@ -6,10 +6,12 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 
 
 def add_callbacks(args):
+    # Directorio para guardar modelos y logs
     log_dir = args.savedmodel_path
     os.makedirs(log_dir, exist_ok=True)
 
     # --------- Add Callbacks
+    # Guarda los pesos del modelo periódicamente
     checkpoint_callback = ModelCheckpoint(
         dirpath=os.path.join(log_dir, "checkpoints"),
         filename="{epoch}-{step}",
@@ -18,7 +20,7 @@ def add_callbacks(args):
         save_last=False,
         save_weights_only=False
     )
-    
+    # Monitorea el learning_rate 
     lr_monitor_callback = LearningRateMonitor(logging_interval='step')
     tb_logger = pl_loggers.TensorBoardLogger(save_dir=os.path.join(log_dir, "logs"), name="tensorboard")
     csv_logger = CSVLogger(save_dir=os.path.join(log_dir, "logs"), name="csvlog")
