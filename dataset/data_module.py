@@ -5,6 +5,8 @@ from dataset.data_helper import create_datasets
 
 
 class DataModule(LightningDataModule):
+    # Subclase de LightningDataModule que gestiona la carga de datos en PyTorch Lightning. 
+    # Facilita el manejo de datasets y DataLoaders en entornos de entrenamiento distribuido
 
     def __init__(
             self,
@@ -14,6 +16,7 @@ class DataModule(LightningDataModule):
         self.args = args
 
     def prepare_data(self):
+        # Está vacío pero serviría para descargar los datos (si fuera necesario), tokenizarlos antes de la carga, preprocesar imágenes y cargarlas en cache.
         """
         Use this method to do things that might write to disk or that need to be done only from a single process in distributed settings.
 
@@ -26,6 +29,7 @@ class DataModule(LightningDataModule):
         """
 
     def setup(self, stage: str):
+        # Carga los datasets de train/val/test y los almacena en self.dataset
         """
         There are also data operations you might want to perform on every GPU. Use setup to do things like:
 
@@ -48,6 +52,13 @@ class DataModule(LightningDataModule):
 
 
     def train_dataloader(self):
+        # Crea un DataLoader para el conjunto de entrenamiento
+        # Parámetros:
+        #     batch_size: tamaño del lote
+        #     drop_last: descarta el último lote si es incompleto
+        #     pin_memory: optimiza el uso de memoria en GPU
+        #     num_workers: usa múltiples núcleos para acelerar la carga 
+        #     prefetch_factor: reduce latencia precargando datos
         """
         Use this method to generate the train dataloader. Usually you just wrap the dataset you defined in setup.
         :return:
