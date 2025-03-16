@@ -1,4 +1,7 @@
 #!/bin/bash
+# Entrena el modelo en IU X-ray
+# Congela el modelo visual
+# No usa LoRA
 
 # Dataset de IU X-ray
 dataset="iu_xray"
