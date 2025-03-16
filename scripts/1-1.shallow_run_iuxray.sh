@@ -1,12 +1,17 @@
 #!/bin/bash
 
+# Dataset de IU X-ray
 dataset="iu_xray"
+# Archivos con las anotaciones de reportes médicos
 annotation="data/iu_xray/annotation.json"
+# Carpeta donde están las imágenes
 base_dir="./data/iu_xray/images"
-
+# Nombre de la versión del experimento
 version="v1_shallow"
+# Carpeta donde se guardan los resultados 
 savepath="./save/$dataset/$version"
 
+# Ejecuta el entrenamiento
 python -u train.py \
     --dataset ${dataset} \
     --annotation ${annotation} \
